@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Category and Item Management</title>
+    <style>
+        body { font-family: Arial, sans-serif; }
+        h1, h2 { color: #333; }
+        input, button, select { margin: 5px 0; padding: 10px; font-size: 1em; }
+        button { cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>Category and Item Management</h1>
+
+    <!-- Create a Category -->
+    <h2>Create a Category</h2>
+    <input type="text" id="categoryName" placeholder="Category Name">
+    <button onclick="createCategory()">Create Category</button>
+
+    <!-- Add Item to Category -->
+    <h2>Add Item to Category</h2>
+    <input type="text" id="itemName" placeholder="Item Name">
+    <input type="number" id="itemCount" placeholder="Item Count">
+    <select id="addItemsCategoryId">
+        <!-- Populate with category options -->
+    </select>
+    <button onclick="addItemToCategory()">Add Item</button>
+
+    <!-- Update Item Count in Category -->
+    <h2>Update Item Count in Category</h2>
+    <input type="number" id="newItemCount" placeholder="New Item Count">
+    <select id="updateCategoryId" onchange="populateItemsDropdown()">
+        <!-- Populate with category options -->
+    </select>
+    <select id="updateItemId">
+        <!-- Populate with item options -->
+    </select>
+    <button onclick="updateItemCount()">Update Count</button>
+
+    <!-- Delete a Category -->
+    <h2>Delete a Category</h2>
+    <select id="deleteCategoryId">
+        <!-- Populate with category options -->
+    </select>
+    <button onclick="deleteCategory()">Delete Category</button>
+
+    <!-- Update Category Name -->
+    <h2>Update Category Name</h2>
+    <input type="text" id="updatedCategoryName" placeholder="New Category Name">
+    <select id="updateCategoryNameId">
+        <!-- Populate with category options -->
+    </select>
+    <button onclick="updateCategoryName()">Update Name</button>
+
+    <!-- View Categories with Item Count -->
+    <h2>Categories</h2>
+    <div id="categoriesList"></div>
+
+    <script>
+        // Function to fetch data from API
+        function fetchData(method, url, data, callback) {
+            var xhr = new XMLHttpRequest();
+            xhr.open(method, url, true);
+            xhr.setRequestHeader('Content-Type', 'application/json');
+            xhr.onreadystatechange = function () {
+                if (xhr.readyState === 4) {
+                    if (xhr.status === 200) {
+                        var response = JSON.parse(xhr.responseText);
+                        callback(response);
+                    } else {
+                        console.error('Error:', xhr.status, xhr.statusText);
+                    }
+                }
+            };
+            xhr.send(JSON.stringify(data));
+        }
+
+        // Function to populate categories in dropdowns
+        function populateCategories() {
+            fetchData('GET', '/api/categories', null, function (categories) {
+                var categoryIdDropdowns = document.querySelectorAll('#addItemsCategoryId, #updateCategoryId, #deleteCategoryId, #updateCategoryNameId');
+                categoryIdDropdowns.forEach(function (dropdown) {
+                    dropdown.innerHTML = '';
+                    categories.forEach(function (category) {
+                        var option = document.createElement('option');
+                        option.value = category.id;
+                        option.textContent = category.name;
+                        dropdown.appendChild(option);
+                    });
+                });
+
+                var categoriesList = document.getElementById('categoriesList');
+                categoriesList.innerHTML = '';
+                categories.forEach(function (category) {
+                    var categoryDiv = document.createElement('div');
+                    categoryDiv.innerHTML = `<strong>${category.name}</strong> - ${category.items.length} items`;
+                    categoriesList.appendChild(categoryDiv);
+                });
+            });
+        }
+
+        // Function to populate items dropdown based on selected category
+        function populateItemsDropdown() {
+            var categoryId = document.getElementById('updateCategoryId').value;
+            if (categoryId) {
+                var url = '/api/categories/' + categoryId;
+                fetchData('GET', url, null, function (category) {
+                    var updateItemIdDropdown = document.getElementById('updateItemId');
+                    updateItemIdDropdown.innerHTML = '';
+                    category.items.forEach(function (item) {
+                        var option = document.createElement('option');
+                        option.value = item.id;
+                        option.textContent = item.name + ' (' + item.count + ')';
+                        updateItemIdDropdown.appendChild(option);
+                    });
+                });
+            }
+        }
+
+        // Function to create a category
+        function createCategory() {
+            var categoryName = document.getElementById('categoryName').value;
+            if (categoryName) {
+                var categoryData = { name: categoryName };
+                fetchData('POST', '/api/categories', categoryData, function (response) {
+                    console.log('Created category:', response);
+                    populateCategories();
+                });
+            }
+        }
+
+        // Function to add an item to a category
+        function addItemToCategory() {
+            var categoryId = document.getElementById('addItemsCategoryId').value;
+            var itemName = document.getElementById('itemName').value;
+            var itemCount = parseInt(document.getElementById('itemCount').value);
+            if (categoryId && itemName && !isNaN(itemCount)) {
+                var itemData = { name: itemName, count: itemCount };
+                var url = '/api/categories/' + categoryId + '/items';
+                fetchData('POST', url, itemData, function (response) {
+                    console.log('Added item to category:', response);
+                    populateCategories();
+                });
+            }
+        }
+
+        // Function to update item count in a category
+        function updateItemCount() {
+            var categoryId = document.getElementById('updateCategoryId').value;
+            var itemId = document.getElementById('updateItemId').value;
+            var newItemCount = parseInt(document.getElementById('newItemCount').value);
+            if (categoryId && itemId && !isNaN(newItemCount)) {
+                var itemData = { count: newItemCount };
+                var url = '/api/categories/' + categoryId + '/items/' + itemId;
+                fetchData('PUT', url, itemData, function (response) {
+                    console.log('Updated item count:', response);
+                    populateCategories();
+                });
+            }
+        }
+
+        // Function to delete a category
+        function deleteCategory() {
+            var categoryId = document.getElementById('deleteCategoryId').value;
+            if (categoryId) {
+                var url = '/api/categories/' + categoryId;
+                fetchData('DELETE', url, null, function (response) {
+                    console.log('Deleted category:', response);
+                    populateCategories();
+                });
+            }
+        }
+
+        // Function to update the name of a category
+        function updateCategoryName() {
+            var categoryId = document.getElementById('updateCategoryNameId').value;
+            var updatedCategoryName = document.getElementById('updatedCategoryName').value;
+            if (categoryId && updatedCategoryName) {
+                var updatedCategoryData = { name: updatedCategoryName };
+                var url = '/api/categories/' + categoryId;
+                fetchData('PUT', url, updatedCategoryData, function (response) {
+                    console.log('Updated category name:', response);
+                    populateCategories();
+                });
+            }
+        }
+
+        // Populate categories in dropdowns on page load
+        window.onload = function () {
+            populateCategories();
+        };
+    </script>
+</body>
+</html>
